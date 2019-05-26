@@ -57,7 +57,6 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	// Log setup values
 	logSetup()
 
 	// start server
