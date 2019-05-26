@@ -33,9 +33,9 @@ func logSetup() {
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
+func serveReverseProxy(targetURL string, res http.ResponseWriter, req *http.Request) {
 	// parse the url
-	url, _ := url.Parse(target)
+	url, _ := url.Parse(targetURL)
 
 	// create the reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(url)
