@@ -1,3 +1,8 @@
 env:
   target_url: http://127.0.0.1:5080/api/values
   port: 5000
+  well_known_url: replace
+  client_id: replace
+  redirect_uri: replace
+  audience: replace
+  scopes: replace

@@ -3,5 +3,10 @@ kind: ConfigMap
 metadata:
   name: env-configmap
 data:
-  TARGET_URL: "{{.Values.env.target_url}}"
-  PORT: "{{.Values.env.port}}"
+  target_url: "{{.Values.env.target_url}}"
+  port: "{{.Values.env.port}}"
+  well_known_url: "{{.Values.env.well_known_url}}"
+  client_id: "{{.Values.env.client_id}}"
+  redirect_uri: "{{.Values.env.redirect_uri}}"
+  audience: "{{.Values.env.audience}}"
+  scopes: "{{.Values.env.scopes}}"

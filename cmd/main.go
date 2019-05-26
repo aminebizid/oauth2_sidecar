@@ -7,6 +7,13 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/aminebizid/oauth2_sidecar/pkg/oauth"
+)
+
+var (
+	targetURL     string
+	port          string
+	oauthProvider *oauth.Provider
 )
 
 // Get env var or default
@@ -17,23 +24,13 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// Get the port to listen on
-func getListenAddress() string {
-	port := getEnv("PORT", "1338")
-	return ":" + port
-}
-
 // Log the env variables required for a reverse proxy
 func logSetup() {
 	log.SetLevel(log.InfoLevel)
-	targetURL := os.Getenv("TARGET_URL")
-
-	log.Infof("Server will run on: %s\n", getListenAddress())
-	log.Infof("Redirecting to A url: %s\n", targetURL)
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(targetURL string, res http.ResponseWriter, req *http.Request) {
+func serveReverseProxy(res http.ResponseWriter, req *http.Request) {
 	// parse the url
 	url, _ := url.Parse(targetURL)
 
@@ -52,16 +49,26 @@ func serveReverseProxy(targetURL string, res http.ResponseWriter, req *http.Requ
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	targetURL := os.Getenv("TARGET_URL")
-	serveReverseProxy(targetURL, res, req)
+	if oauthProvider.Check(req) {
+		serveReverseProxy(res, req)
+	} else {
+		http.Error(res, "Forbidden", http.StatusForbidden)
+		return
+	}
 }
 
 func main() {
 	logSetup()
+	targetURL = os.Getenv("target_url")
+	port = ":" + os.Getenv("port")
+	log.Infof("Server will run on: %s\n", port)
+	log.Infof("Redirecting to A url: %s\n", targetURL)
+
+	oauthProvider = oauth.NewOauthProvider(os.Getenv("well_known_url"), os.Getenv("clinet_id"), os.Getenv("redirect_uri"), os.Getenv("audience"), os.Getenv("scopes"))
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
-	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
+	if err := http.ListenAndServe(port, nil); err != nil {
 		panic(err)
 	}
 }
