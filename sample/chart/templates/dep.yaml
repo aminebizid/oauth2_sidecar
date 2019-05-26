@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: side-sample
+  labels:
+    app: side-sample
+spec:
+  containers:
+  - name: sample-container
+    image: aminrbizid/sample:1.0
+    ports:
+    - containerPort: 5080
+  - name: sidecar-container
+    image: aminrbizid/oauth2_sidecar:0.0.1
+    ports:
+    - containerPort: 5000
+    envFrom:
+    - configMapRef:
+        name: env-configmap
+

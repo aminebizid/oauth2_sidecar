@@ -1,0 +1,3 @@
+env:
+  target_url: http://127.0.0.1:5080/api/values
+  port: 5000
