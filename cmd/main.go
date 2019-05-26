@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Get env var or default
@@ -27,48 +25,11 @@ func getListenAddress() string {
 
 // Log the env variables required for a reverse proxy
 func logSetup() {
+	log.SetLevel(log.InfoLevel)
 	targetURL := os.Getenv("TARGET_URL")
 
-	log.Printf("Server will run on: %s\n", getListenAddress())
-	log.Printf("Redirecting to A url: %s\n", targetURL)
-}
-
-type requestPayloadStruct struct {
-	ProxyCondition string `json:"proxy_condition"`
-}
-
-// Get a json decoder for a given requests body
-func requestBodyDecoder(request *http.Request) *json.Decoder {
-	// Read body to buffer
-	body, err := ioutil.ReadAll(request.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		panic(err)
-	}
-
-	// Because go lang is a pain in the ass if you read the body then any susequent calls
-	// are unable to read the body again....
-	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
-	return json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(body)))
-}
-
-// Parse the requests body
-func parseRequestBody(request *http.Request) requestPayloadStruct {
-	decoder := requestBodyDecoder(request)
-
-	var requestPayload requestPayloadStruct
-	err := decoder.Decode(&requestPayload)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return requestPayload
-}
-
-func logRequestPayload(requestionPayload requestPayloadStruct, proxyURL string) {
-	log.Printf("proxy_condition: %s, proxy_url: %s\n", requestionPayload.ProxyCondition, proxyURL)
+	log.Infof("Server will run on: %s\n", getListenAddress())
+	log.Infof("Redirecting to A url: %s\n", targetURL)
 }
 
 // Serve a reverse proxy for a given url
