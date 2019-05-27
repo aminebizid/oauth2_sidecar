@@ -49,11 +49,8 @@ func serveReverseProxy(res http.ResponseWriter, req *http.Request) {
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	if oauthProvider.Check(req) {
+	if oauthProvider.Check(res, req) {
 		serveReverseProxy(res, req)
-	} else {
-		http.Error(res, "Forbidden", http.StatusForbidden)
-		return
 	}
 }
 
@@ -64,7 +61,7 @@ func main() {
 	log.Infof("Server will run on: %s\n", port)
 	log.Infof("Redirecting to A url: %s\n", targetURL)
 
-	oauthProvider = oauth.NewOauthProvider(os.Getenv("well_known_url"), os.Getenv("clinet_id"), os.Getenv("redirect_uri"), os.Getenv("audience"), os.Getenv("scopes"))
+	oauthProvider = oauth.NewOauthProvider(os.Getenv("well_known_url"), os.Getenv("client_id"), os.Getenv("redirect_uri"), os.Getenv("audience"), os.Getenv("scopes"))
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)

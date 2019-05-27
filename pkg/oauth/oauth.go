@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -20,6 +21,12 @@ type Provider struct {
 	redirectIss  string
 }
 
+type wellKnown struct {
+	Issuer                string `json:"issuer"`
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	TokenEndpoint         string `json:"token_endpoint"`
+}
+
 // NewOauthProvider create an OAUTH provider instance
 func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes string) *Provider {
 	key := []byte("super-secret-key")
@@ -32,35 +39,39 @@ func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes stri
 		key:          key,
 		store:        sessions.NewCookieStore(key),
 		cookieName:   "proxy_cookie",
-		redirectIss: getRedirectIss(wellKnownURL)
+		redirectIss:  getRedirectIss(wellKnownURL, clientID, scopes, redirectURI),
 	}
 	return provider
 }
 
-func getRedirectIss(wellKnownURL string) string {
-	// self.redirect_url = ''.join((self.authorize_url,
-	// 	'?client_id=', self.client_id,
-	// 	'&response_type=token',
-	// 	'&scope=', 'openid ', self.scopes,
-	// 	'&redirect_uri=', self.redirecturi,
-	// 	'&state=state',
-	// 	'&nonce=nonce'
-	// 	))
-	return ""
+func getRedirectIss(wellKnownURL, clientID, scopes, redirectURI string) string {
+	resp, error := http.Get(wellKnownURL)
+	if error != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	var wellKnown wellKnown
+	json.NewDecoder(resp.Body).Decode(&wellKnown)
+
+	return wellKnown.AuthorizationEndpoint +
+		"?client_id=" + clientID +
+		"&response_type=token" +
+		"&scope=openid " + scopes +
+		"&redirect_uri=" + redirectURI +
+		"&state=state" +
+		"&nonce=nonce"
 }
 
 // Check if Authenticated
 func (p *Provider) Check(res http.ResponseWriter, req *http.Request) bool {
 	session, _ := p.store.Get(req, p.cookieName)
 
-	userAgent := req.Header.Get("USER_AGENT")
+	userAgent := req.Header.Get("User-Agent")
 	if strings.HasPrefix(userAgent, "Mozilla") {
 		// Ok if already authenticated
-		if session.Values["authenticated"].(bool) {
-			return true
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(res, req, p.redirectIss, 302)
 		}
-
-		http.Redirect(res, req, p.redirectIss, 302)
 
 	}
 
