@@ -44,7 +44,7 @@ func serveReverseProxy(w http.ResponseWriter, r *http.Request) {
 	// Update the headers to allow for SSL redirection
 	r.URL.Host = url.Host
 	r.URL.Scheme = url.Scheme
-	r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
+	// r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
 	log.Debug(oauthProvider.GetSession(r, "CLIENTID"))
 	r.Header.Set("CLIENTID", oauthProvider.GetSession(r, "CLIENTID").(string))
 	r.Host = url.Host
