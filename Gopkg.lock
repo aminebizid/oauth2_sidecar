@@ -10,6 +10,22 @@
   version = "v1.4.2"
 
 [[projects]]
+  digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  pruneopts = "UT"
+  revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
+  version = "v1.1.1"
+
+[[projects]]
+  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
+
+[[projects]]
   digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
   name = "github.com/gorilla/context"
   packages = ["."]
@@ -43,6 +59,34 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:7ea84716ab53c13c7a574fb955ee037f31bfd6e519ad1b8299eda40aa05edf33"
+  name = "github.com/lestrrat/go-jwx"
+  packages = [
+    "internal/base64",
+    "jwa",
+    "jwk",
+  ]
+  pruneopts = "UT"
+  revision = "b7d4802280aef47b8786da314e8675d41d980b04"
+
+[[projects]]
+  branch = "master"
+  digest = "1:27f17849bfe2b9119be21d515c086880a001f9a7e4df1e95d8f8a63ba447001b"
+  name = "github.com/lestrrat/go-pdebug"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "569c97477ae8837e053e5a50bc739e15172b8ebe"
+
+[[projects]]
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
+
+[[projects]]
+  branch = "master"
   digest = "1:9ca267f99487ef450fff0c2a49eaf0788d9ff3562bbaeff19f564d380f84bc6d"
   name = "golang.org/x/sys"
   packages = ["unix"]
@@ -54,7 +98,9 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Sirupsen/logrus",
+    "github.com/dgrijalva/jwt-go",
     "github.com/gorilla/sessions",
+    "github.com/lestrrat/go-jwx/jwk",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
