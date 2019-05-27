@@ -57,10 +57,13 @@ func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes stri
 }
 
 func getWellKnown(wellKnownURL string) wellKnown {
-	resp, _ := http.Get(wellKnownURL)
+	var wellKnown wellKnown
+	resp, err := http.Get(wellKnownURL)
+	if err != nil {
+		return wellKnown
+	}
 
 	defer resp.Body.Close()
-	var wellKnown wellKnown
 	json.NewDecoder(resp.Body).Decode(&wellKnown)
 	return wellKnown
 }
@@ -119,8 +122,8 @@ func (p *Provider) getKey(token *jwt.Token) (interface{}, error) {
 	return nil, errors.New("unable to find key")
 }
 
-func (p *Provider) recieveToken(req *http.Request) bool {
-	tokens, ok := req.URL.Query()["token"]
+func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) bool {
+	tokens, ok := r.URL.Query()["token"]
 	if !ok || len(tokens[0]) < 1 {
 		log.Error("Url Param 'token' is missing")
 		return false
@@ -129,8 +132,12 @@ func (p *Provider) recieveToken(req *http.Request) bool {
 	var client client
 	token, _ := jwt.ParseWithClaims(tokens[0], &client, p.getKey)
 	if token.Valid {
-		req.Header.Set("CLIENTID", client.Subject)
-
+		session, _ := p.store.Get(r, p.cookieName)
+		session.Values["authenticated"] = true
+		session.Values["CLIENTID"] = client.Subject
+		session.Save(r, w)
+		log.Debug("Redirecting from token")
+		http.Redirect(w, r, "/api/values", 302)
 		return true
 	}
 	return false
@@ -146,19 +153,41 @@ func (p *Provider) Check(res http.ResponseWriter, req *http.Request) bool {
 	}
 
 	if strings.HasPrefix(req.RequestURI, "/signin-token") {
-		return p.recieveToken(req)
+		log.Debug("Token recieved")
+		return p.recieveToken(res, req)
 	}
 
 	userAgent := req.Header.Get("User-Agent")
 	if strings.HasPrefix(userAgent, "Mozilla") {
+
 		session, _ := p.store.Get(req, p.cookieName)
+		p.SetSession(res, req, "origin_request", req.RequestURI)
 		// Ok if already authenticated
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			log.Debug("Not authenticated redirecting to " + p.redirectIss)
 			http.Redirect(res, req, p.redirectIss, 302)
+			return false
 		}
+		log.Debug("Authenticated")
 		return true
 	}
 
 	// Brearer
 	return false
+}
+
+// SetSession stores Cookie session
+func (p *Provider) SetSession(w http.ResponseWriter, r *http.Request, key string, value interface{}) {
+	session, _ := p.store.Get(r, p.cookieName)
+	session.Values[key] = value
+	session.Save(r, w)
+}
+
+// GetSession Get cookie value
+func (p *Provider) GetSession(r *http.Request, key string) interface{} {
+	session, _ := p.store.Get(r, p.cookieName)
+	if v, ok := session.Values[key]; ok {
+		return v
+	}
+	return nil
 }

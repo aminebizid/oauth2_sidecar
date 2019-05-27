@@ -26,31 +26,39 @@ func getEnv(key, fallback string) string {
 
 // Log the env variables required for a reverse proxy
 func logSetup() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(res http.ResponseWriter, req *http.Request) {
+func serveReverseProxy(w http.ResponseWriter, r *http.Request) {
 	// parse the url
 	url, _ := url.Parse(targetURL)
+	// if url.Path == "/favicon.ico" {
+	// 	w.Write([]byte(""))
+	// 	return
+	// }
 
 	// create the reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
 	// Update the headers to allow for SSL redirection
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
-	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	req.Host = url.Host
-
+	r.URL.Host = url.Host
+	r.URL.Scheme = url.Scheme
+	r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
+	log.Debug(oauthProvider.GetSession(r, "CLIENTID"))
+	r.Header.Set("CLIENTID", oauthProvider.GetSession(r, "CLIENTID").(string))
+	r.Host = url.Host
+	log.Debug("Running proxy")
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	proxy.ServeHTTP(res, req)
+	proxy.ServeHTTP(w, r)
 }
 
 // Given a request send it to the appropriate url
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	if oauthProvider.Check(res, req) {
-		serveReverseProxy(res, req)
+func handleRequestAndRedirect(w http.ResponseWriter, r *http.Request) {
+	log.Debug("GET " + r.Host + r.URL.Path)
+	log.Debug(oauthProvider.GetSession(r, "origin_request"))
+	if oauthProvider.Check(w, r) {
+		serveReverseProxy(w, r)
 	}
 }
 
