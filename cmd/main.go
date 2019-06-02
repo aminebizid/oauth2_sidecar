@@ -42,8 +42,6 @@ func logSetup() {
 		log.Errorf("Invalid value for --log-level: %s. Setting level to 'Info'", logLevel)
 		log.SetLevel(log.InfoLevel)
 	}
-
-	log.SetLevel(log.DebugLevel)
 }
 
 // Serve a reverse proxy for a given url
@@ -60,15 +58,14 @@ func serveReverseProxy(w http.ResponseWriter, r *http.Request, client string) {
 	r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
 	r.Header.Set("CLIENTID", client)
 	r.Host = url.Host
-	log.Debug("Running proxy")
+	log.Debugf("Running proxy to %s %s", r.Host, r.RequestURI)
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(w, r)
 }
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(w http.ResponseWriter, r *http.Request) {
-	log.Debug("GET " + r.Host + r.URL.Path)
-	log.Debug(oauthProvider.GetSession(r, "origin_request"))
+	log.Infof("GET %s %s", r.Host, r.URL.Path)
 	ok, client := oauthProvider.Check(w, r)
 	if ok {
 		serveReverseProxy(w, r, client.Subject)

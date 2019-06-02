@@ -23,6 +23,7 @@ func (p *Provider) GetSession(r *http.Request, key string) interface{} {
 	if v, ok := session.Values[key]; ok {
 		return v
 	}
+	log.Debugf("Session Key not found %s", key)
 	return nil
 }
 

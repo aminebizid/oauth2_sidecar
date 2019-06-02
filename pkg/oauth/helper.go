@@ -26,7 +26,7 @@ func getRedirectIss(authorizationEndpoint, clientID, scopes, redirectURI string)
 		"&response_type=token" +
 		"&scope=openid " + scopes +
 		"&redirect_uri=" + redirectURI +
-		"&state=state" +
+		"&state=$state$" +
 		"&nonce=nonce"
 }
 
@@ -37,12 +37,15 @@ func (p *Provider) redirect(res http.ResponseWriter) {
 				<script>
 					try {
 						x = location.hash.split('&');
+
 						y = x[0].split('=');
 						if (y[1] != '#access_token') {
 							location.replace("/sign-error?error=forbidden");
 						}
 						token = y[1]
-						location.replace("/signin-token?token=" + token);
+						y = x[x.length -1].split('=');
+						state = y[1]
+						location.replace("/signin-token?token=" + token + "&state=" + state);
 					} catch(error) {
 						location.replace("/sign-oidc?error=" + error);
 					}
