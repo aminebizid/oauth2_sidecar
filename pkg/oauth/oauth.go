@@ -79,7 +79,7 @@ func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (bool, *
 }
 
 func (p *Provider) getRedirIss(requestURI string) string {
-	u1, _ := uuid.NewV4()
+	u1 := uuid.NewV4()
 	mutex.Lock()
 	users[u1.String()] = requestURI
 	mutex.Unlock()
