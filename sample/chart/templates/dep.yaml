@@ -11,7 +11,7 @@ spec:
     ports:
     - containerPort: 5080
   - name: sidecar-container
-    image: aminrbizid/oauth2_sidecar:0.0.2
+    image: {{.Values.image}}
     ports:
     - containerPort: {{.Values.env.port}}
     envFrom:

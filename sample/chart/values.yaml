@@ -8,3 +8,4 @@ env:
   scopes: replace
   session_key: super-secret-key
   logLevel: info
+image: aminrbizid/oauth2_sidecar:0.0.3
