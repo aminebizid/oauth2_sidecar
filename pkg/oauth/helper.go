@@ -4,29 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
-// Get env var or default
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
-func getWellKnown(wellKnownURL string) wellKnown {
+func getWellKnown(wellKnownURL string) (wellKnown, error) {
 	var wellKnown wellKnown
 	resp, err := http.Get(wellKnownURL)
 	if err != nil {
-		return wellKnown
+		return wellKnown, err
 	}
 
 	defer resp.Body.Close()
 	json.NewDecoder(resp.Body).Decode(&wellKnown)
-	return wellKnown
+	return wellKnown, nil
 }
 
 func getRedirectIss(authorizationEndpoint, clientID, scopes, redirectURI string) string {
@@ -75,11 +66,15 @@ func (p *Provider) getKey(token *jwt.Token) (interface{}, error) {
 	return nil, errors.New("unable to find key")
 }
 
-func (p *Provider) parseToken(token string) (bool, string) {
-	var client client
-	jwttoken, _ := jwt.ParseWithClaims(token, &client, p.getKey)
-	if jwttoken.Valid {
-		return true, client.Subject
+func (p *Provider) parseToken(token string) (bool, *jwt.StandardClaims) {
+	var claims jwt.StandardClaims
+
+	jwttoken, err := jwt.ParseWithClaims(token, &claims, p.getKey)
+	if err != nil {
+		return false, &claims
 	}
-	return false, ""
+	if jwttoken.Valid {
+		return true, &claims
+	}
+	return false, &claims
 }

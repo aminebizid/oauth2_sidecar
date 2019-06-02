@@ -25,15 +25,17 @@ type wellKnown struct {
 	JwksURI               string `json:"jwks_uri"`
 }
 
-type client struct {
-	jwt.StandardClaims
-}
-
 // NewOauthProvider create an OAUTH provider instance
-func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes string) *Provider {
-	key := []byte("super-secret-key")
-	wellKnown := getWellKnown(wellKnownURL)
-	jwk, _ := jwk.FetchHTTP(wellKnown.JwksURI)
+func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes, sessionKey string) *Provider {
+	key := []byte(sessionKey)
+	wellKnown, err := getWellKnown(wellKnownURL)
+	if err != nil {
+		panic(err)
+	}
+	jwk, err := jwk.FetchHTTP(wellKnown.JwksURI)
+	if err != nil {
+		panic(err)
+	}
 	provider := &Provider{
 		store:       sessions.NewCookieStore(key),
 		cookieName:  "proxy_cookie",
@@ -43,22 +45,21 @@ func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes stri
 	return provider
 }
 
-func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (bool, string) {
+func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (bool, *jwt.StandardClaims) {
 	tokens, ok := r.URL.Query()["token"]
 	if !ok || len(tokens[0]) < 1 {
 		log.Error("Url Param 'token' is missing")
-		return false, ""
+		return false, nil
 	}
-	log.Debug(tokens[0])
+	log.Debugf("Implicit flow: Token recieved : %s", tokens[0])
 	return p.parseToken(tokens[0])
 }
 
-// Check if Authenticated
-func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (bool, string) {
+func (p *Provider) checkBrowser(w http.ResponseWriter, r *http.Request) (bool, *jwt.StandardClaims) {
 
 	if r.RequestURI == "/signin-oidc" {
 		p.redirect(w)
-		return false, ""
+		return false, nil
 	}
 
 	if strings.HasPrefix(r.RequestURI, "/signin-token") {
@@ -67,34 +68,41 @@ func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (bool, string) 
 		if valid {
 			p.SetSession(w, r, "authenticated", true)
 			p.SetSession(w, r, "CLIENTID", client)
-			http.Redirect(w, r, p.GetSession(r, "origin_request").(string), 302)
-			return valid, client
+			origin := p.GetSessionString(r, "origin_request")
+			http.Redirect(w, r, origin, 302)
+			return false, nil
 		}
-		return false, ""
+		return false, nil
 	}
 
+	p.SetSession(w, r, "origin_request", r.RequestURI)
+	auth := p.GetSession(r, "authenticated")
+	if auth != nil && auth.(bool) {
+		client := p.GetSessionString(r, "CLIENTID")
+		log.Debug("Authenticated")
+		var x jwt.StandardClaims
+		x.Subject = client
+		return true, &x
+	}
+	log.Debug("Not authenticated redirecting to " + p.redirectIss)
+	http.Redirect(w, r, p.redirectIss, 302)
+	return false, nil
+}
+
+// Check if Authenticated
+func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (bool, *jwt.StandardClaims) {
 	userAgent := r.Header.Get("User-Agent")
 	if strings.HasPrefix(userAgent, "Mozilla") {
-		p.SetSession(w, r, "origin_request", r.RequestURI)
-		auth := p.GetSession(r, "authenticated")
-		if auth != nil && auth.(bool) {
-			client := p.GetSession(r, "CLIENTID")
-			log.Debug("Authenticated")
-			return true, client.(string)
-		}
-		log.Debug("Not authenticated redirecting to " + p.redirectIss)
-		http.Redirect(w, r, p.redirectIss, 302)
-		return false, ""
+		return p.checkBrowser(w, r)
 	}
-
 	// Brearer
 	bearer := r.Header.Get("Authorization")
 	if bearer == "" {
-		return false, ""
+		return false, nil
 	}
 	splitToken := strings.Split(bearer, "Bearer ")
 	if len(splitToken) != 2 {
-		return false, ""
+		return false, nil
 	}
 	log.Debug(splitToken[1])
 	return p.parseToken(splitToken[1])
