@@ -6,3 +6,5 @@ env:
   redirect_uri: replace
   audience: replace
   scopes: replace
+  session_key: super-secret-key
+  logLevel: info

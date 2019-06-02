@@ -10,3 +10,5 @@ data:
   redirect_uri: "{{.Values.env.redirect_uri}}"
   audience: "{{.Values.env.audience}}"
   scopes: "{{.Values.env.scopes}}"
+  session_key: "{{.Values.env.session_key}}"
+  logLevel: "{{.Values.env.logLevel}}"
