@@ -25,6 +25,10 @@ type wellKnown struct {
 	JwksURI               string `json:"jwks_uri"`
 }
 
+var (
+	jwkKey interface{}
+)
+
 // NewOauthProvider create an OAUTH provider instance
 func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes, sessionKey string) *Provider {
 	key := []byte(sessionKey)
@@ -36,6 +40,7 @@ func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes, ses
 	if err != nil {
 		panic(err)
 	}
+
 	provider := &Provider{
 		store:       sessions.NewCookieStore(key),
 		cookieName:  "proxy_cookie",
@@ -45,14 +50,16 @@ func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes, ses
 	return provider
 }
 
-func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (bool, *jwt.StandardClaims) {
+func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (bool, *jwt.StandardClaims, string) {
 	tokens, ok := r.URL.Query()["token"]
 	if !ok || len(tokens[0]) < 1 {
 		log.Error("Url Param 'token' is missing")
-		return false, nil
+		return false, nil, ""
 	}
-	log.Debugf("Implicit flow: Token recieved : %s", tokens[0])
-	return p.parseToken(tokens[0])
+	token := tokens[0]
+	log.Debugf("Implicit flow: Token recieved : %s", token)
+	ok, claims := p.parseToken(token)
+	return ok, claims, token
 }
 
 func (p *Provider) checkBrowser(w http.ResponseWriter, r *http.Request) (bool, *jwt.StandardClaims) {
@@ -64,10 +71,10 @@ func (p *Provider) checkBrowser(w http.ResponseWriter, r *http.Request) (bool, *
 
 	if strings.HasPrefix(r.RequestURI, "/signin-token") {
 		log.Debug("Token recieved")
-		valid, client := p.recieveToken(w, r)
+		valid, claims, token := p.recieveToken(w, r)
 		if valid {
-			p.SetSession(w, r, "authenticated", true)
-			p.SetSession(w, r, "CLIENTID", client)
+			p.SetSession(w, r, "CLIENTID", claims.Subject)
+			p.SetSession(w, r, "TOKEN", token)
 			origin := p.GetSessionString(r, "origin_request")
 			http.Redirect(w, r, origin, 302)
 			return false, nil
@@ -76,15 +83,15 @@ func (p *Provider) checkBrowser(w http.ResponseWriter, r *http.Request) (bool, *
 	}
 
 	p.SetSession(w, r, "origin_request", r.RequestURI)
-	auth := p.GetSession(r, "authenticated")
-	if auth != nil && auth.(bool) {
-		client := p.GetSessionString(r, "CLIENTID")
-		log.Debug("Authenticated")
-		var x jwt.StandardClaims
-		x.Subject = client
-		return true, &x
+	token := p.GetSessionString(r, "TOKEN")
+	if token != "" {
+		ok, claims := p.parseToken(token)
+		if ok {
+			return true, claims
+		}
+		log.Debug("Token expired or not valid")
 	}
-	log.Debug("Not authenticated redirecting to " + p.redirectIss)
+	log.Debugf("Not authenticated redirecting to %s", p.redirectIss)
 	http.Redirect(w, r, p.redirectIss, 302)
 	return false, nil
 }
@@ -98,12 +105,18 @@ func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (bool, *jwt.Sta
 	// Brearer
 	bearer := r.Header.Get("Authorization")
 	if bearer == "" {
+		http.Error(w, "Unauthorized: No Authorization header", 401)
 		return false, nil
 	}
 	splitToken := strings.Split(bearer, "Bearer ")
 	if len(splitToken) != 2 {
+		http.Error(w, "Unauthorized: No bearer detected", 401)
 		return false, nil
 	}
 	log.Debug(splitToken[1])
-	return p.parseToken(splitToken[1])
+	ok, claims := p.parseToken(splitToken[1])
+	if !ok {
+		http.Error(w, "Unauthorized: Invalid Token", 401)
+	}
+	return ok, claims
 }
