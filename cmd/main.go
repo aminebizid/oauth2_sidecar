@@ -30,7 +30,7 @@ func logSetup() {
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(w http.ResponseWriter, r *http.Request) {
+func serveReverseProxy(w http.ResponseWriter, r *http.Request, client string) {
 	// parse the url
 	url, _ := url.Parse(targetURL)
 	// if url.Path == "/favicon.ico" {
@@ -45,8 +45,7 @@ func serveReverseProxy(w http.ResponseWriter, r *http.Request) {
 	r.URL.Host = url.Host
 	r.URL.Scheme = url.Scheme
 	// r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
-	log.Debug(oauthProvider.GetSession(r, "CLIENTID"))
-	r.Header.Set("CLIENTID", oauthProvider.GetSession(r, "CLIENTID").(string))
+	r.Header.Set("CLIENTID", client)
 	r.Host = url.Host
 	log.Debug("Running proxy")
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
@@ -57,8 +56,9 @@ func serveReverseProxy(w http.ResponseWriter, r *http.Request) {
 func handleRequestAndRedirect(w http.ResponseWriter, r *http.Request) {
 	log.Debug("GET " + r.Host + r.URL.Path)
 	log.Debug(oauthProvider.GetSession(r, "origin_request"))
-	if oauthProvider.Check(w, r) {
-		serveReverseProxy(w, r)
+	client, ok := oauthProvider.Check(w, r)
+	if ok {
+		serveReverseProxy(w, r, client)
 	}
 }
 
