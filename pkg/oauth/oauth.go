@@ -43,41 +43,34 @@ func NewOauthProvider(wellKnownURL, clientID, redirectURI, audience, scopes stri
 	return provider
 }
 
-func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (string, bool) {
+func (p *Provider) recieveToken(w http.ResponseWriter, r *http.Request) (bool, string) {
 	tokens, ok := r.URL.Query()["token"]
 	if !ok || len(tokens[0]) < 1 {
 		log.Error("Url Param 'token' is missing")
-		return "", false
+		return false, ""
 	}
 	log.Debug(tokens[0])
-	valid, subject := p.parseToken(tokens[0])
-	if valid {
-		log.Debug("Redirecting from token")
-
-		return subject, true
-	}
-	return "", false
-
+	return p.parseToken(tokens[0])
 }
 
 // Check if Authenticated
-func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (string, bool) {
+func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (bool, string) {
 
 	if r.RequestURI == "/signin-oidc" {
 		p.redirect(w)
-		return "", false
+		return false, ""
 	}
 
 	if strings.HasPrefix(r.RequestURI, "/signin-token") {
 		log.Debug("Token recieved")
-		client, valid := p.recieveToken(w, r)
+		valid, client := p.recieveToken(w, r)
 		if valid {
 			p.SetSession(w, r, "authenticated", true)
 			p.SetSession(w, r, "CLIENTID", client)
 			http.Redirect(w, r, p.GetSession(r, "origin_request").(string), 302)
-			return client, valid
+			return valid, client
 		}
-		return client, valid
+		return false, ""
 	}
 
 	userAgent := r.Header.Get("User-Agent")
@@ -87,23 +80,22 @@ func (p *Provider) Check(w http.ResponseWriter, r *http.Request) (string, bool) 
 		if auth != nil && auth.(bool) {
 			client := p.GetSession(r, "CLIENTID")
 			log.Debug("Authenticated")
-			return client.(string), true
+			return true, client.(string)
 		}
 		log.Debug("Not authenticated redirecting to " + p.redirectIss)
 		http.Redirect(w, r, p.redirectIss, 302)
-		return "", false
+		return false, ""
 	}
 
 	// Brearer
 	bearer := r.Header.Get("Authorization")
 	if bearer == "" {
-		return "", false
+		return false, ""
 	}
 	splitToken := strings.Split(bearer, "Bearer ")
-	log.Debug(splitToken[1])
-	valid, subject := p.parseToken(splitToken[1])
-	if valid {
-		return subject, true
+	if len(splitToken) != 2 {
+		return false, ""
 	}
-	return "", false
+	log.Debug(splitToken[1])
+	return p.parseToken(splitToken[1])
 }

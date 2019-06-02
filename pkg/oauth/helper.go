@@ -4,9 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 
 	"github.com/dgrijalva/jwt-go"
 )
+
+// Get env var or default
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
 func getWellKnown(wellKnownURL string) wellKnown {
 	var wellKnown wellKnown

@@ -16,14 +16,6 @@ var (
 	oauthProvider *oauth.Provider
 )
 
-// Get env var or default
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
 // Log the env variables required for a reverse proxy
 func logSetup() {
 	log.SetLevel(log.DebugLevel)
@@ -33,10 +25,6 @@ func logSetup() {
 func serveReverseProxy(w http.ResponseWriter, r *http.Request, client string) {
 	// parse the url
 	url, _ := url.Parse(targetURL)
-	// if url.Path == "/favicon.ico" {
-	// 	w.Write([]byte(""))
-	// 	return
-	// }
 
 	// create the reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(url)
@@ -44,7 +32,7 @@ func serveReverseProxy(w http.ResponseWriter, r *http.Request, client string) {
 	// Update the headers to allow for SSL redirection
 	r.URL.Host = url.Host
 	r.URL.Scheme = url.Scheme
-	// r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
+	r.Header.Set("X-Forwarded-Host", r.Header.Get("Host"))
 	r.Header.Set("CLIENTID", client)
 	r.Host = url.Host
 	log.Debug("Running proxy")
@@ -56,7 +44,7 @@ func serveReverseProxy(w http.ResponseWriter, r *http.Request, client string) {
 func handleRequestAndRedirect(w http.ResponseWriter, r *http.Request) {
 	log.Debug("GET " + r.Host + r.URL.Path)
 	log.Debug(oauthProvider.GetSession(r, "origin_request"))
-	client, ok := oauthProvider.Check(w, r)
+	ok, client := oauthProvider.Check(w, r)
 	if ok {
 		serveReverseProxy(w, r, client)
 	}
